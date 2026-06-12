@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/auth_service.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -14,9 +15,11 @@ class AdminDashboard extends StatelessWidget {
         title: const Text("Lulu's Car Wash"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.go(AppRoutes.login),
-          ),
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                await AuthService.logout();
+                if (context.mounted) context.go(AppRoutes.login);
+              }),
         ],
       ),
       body: SingleChildScrollView(

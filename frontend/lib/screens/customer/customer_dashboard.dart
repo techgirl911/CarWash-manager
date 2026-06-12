@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
@@ -14,9 +15,11 @@ class CustomerDashboard extends StatelessWidget {
         title: const Text("Lulu's Car Wash"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.go(AppRoutes.login),
-          ),
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                await AuthService();
+                if (context.mounted) context.go(AppRoutes.login);
+              }),
         ],
       ),
       body: SingleChildScrollView(
