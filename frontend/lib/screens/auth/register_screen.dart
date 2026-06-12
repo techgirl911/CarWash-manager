@@ -170,11 +170,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: AppTheme.error, size: 18),
+                  const Icon(Icons.error_outline,
+                      color: AppTheme.error, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(_errorMessage!,
-                        style: TextStyle(color: AppTheme.error, fontSize: 13)),
+                        style: const TextStyle(
+                            color: AppTheme.error, fontSize: 13)),
                   ),
                 ],
               ),
@@ -193,13 +195,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_outline,
+                  const Icon(Icons.check_circle_outline,
                       color: AppTheme.success, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(_successMessage!,
-                        style:
-                            TextStyle(color: AppTheme.success, fontSize: 13)),
+                        style: const TextStyle(
+                            color: AppTheme.success, fontSize: 13)),
                   ),
                 ],
               ),
@@ -302,7 +304,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 text: TextSpan(
                   text: 'Already have an account? ',
                   style: Theme.of(context).textTheme.bodyMedium,
-                  children: [
+                  children: const [
                     TextSpan(
                       text: 'Sign in',
                       style: TextStyle(

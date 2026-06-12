@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,26 +31,31 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your email and password.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    // Temporary: simulate login until backend is ready
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter your email and password.';
-        _isLoading = false;
-      });
-      return;
-    }
+    final result = await AuthService.login(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      role: _selectedRole,
+    );
 
     setState(() => _isLoading = false);
 
-    // Navigate based on role
-    if (_selectedRole == 'admin') {
+    if (!result['success']) {
+      setState(() => _errorMessage = result['message']);
+      return;
+    }
+
+    final role = result['data']['user']['role'];
+    if (role == 'admin') {
       context.go(AppRoutes.adminDashboard);
     } else {
       context.go(AppRoutes.customerDashboard);
@@ -148,11 +154,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: AppTheme.error, size: 18),
+                  const Icon(Icons.error_outline,
+                      color: AppTheme.error, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(_errorMessage!,
-                        style: TextStyle(color: AppTheme.error, fontSize: 13)),
+                        style: const TextStyle(
+                            color: AppTheme.error, fontSize: 13)),
                   ),
                 ],
               ),
@@ -229,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: TextSpan(
                   text: 'New customer? ',
                   style: Theme.of(context).textTheme.bodyMedium,
-                  children: [
+                  children: const [
                     TextSpan(
                       text: 'Create an account',
                       style: TextStyle(

@@ -153,8 +153,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
                   style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w700)),
               Text(label,
-                  style:
-                      TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSecondary)),
             ],
           ),
         ],
@@ -202,10 +202,10 @@ class _SpacesScreenState extends State<SpacesScreen> {
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
               Text(bay['service'],
-                  style:
-                      TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSecondary)),
             ] else
-              Text('Available',
+              const Text('Available',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

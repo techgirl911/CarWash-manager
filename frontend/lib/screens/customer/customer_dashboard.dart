@@ -168,8 +168,8 @@ class CustomerDashboard extends StatelessWidget {
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 2),
                 Text('${r['service']} • ${r['time']}',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary)),
               ],
             ),
           ),

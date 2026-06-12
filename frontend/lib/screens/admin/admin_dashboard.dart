@@ -124,13 +124,13 @@ class AdminDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(value,
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary)),
               Text(label,
-                  style:
-                      TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppTheme.textSecondary)),
             ],
           ),
         ],

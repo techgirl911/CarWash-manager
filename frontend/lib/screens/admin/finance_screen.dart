@@ -164,7 +164,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(label,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              style:
+                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
       ),
     );
@@ -247,7 +248,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text('+${entry['profit']} F',
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.success)),
@@ -276,7 +277,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+            style:
+                const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
         const SizedBox(height: 2),
         Text(value,
             style: TextStyle(

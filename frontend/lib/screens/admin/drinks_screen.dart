@@ -189,7 +189,8 @@ class _DrinksScreenState extends State<DrinksScreen> {
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(label,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              style:
+                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
       ),
     );
@@ -205,22 +206,22 @@ class _DrinksScreenState extends State<DrinksScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.notifications_active_outlined,
+          const Icon(Icons.notifications_active_outlined,
               color: AppTheme.error, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Low Stock Alert',
+                const Text('Low Stock Alert',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         color: AppTheme.error)),
                 const SizedBox(height: 2),
                 Text(
-                  items.map((e) => e['name']).join(', ') + ' running low',
-                  style: TextStyle(fontSize: 12, color: AppTheme.error),
+                  '${items.map((e) => e['name']).join(', ')} running low',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.error),
                 ),
               ],
             ),
@@ -265,11 +266,11 @@ class _DrinksScreenState extends State<DrinksScreen> {
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 2),
                 Text('${drink['price']} F per unit',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary)),
                 if (isLow) ...[
                   const SizedBox(height: 4),
-                  Text('Low stock!',
+                  const Text('Low stock!',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

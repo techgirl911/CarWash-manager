@@ -63,7 +63,8 @@ class _ReservationScreenState extends State<ReservationScreen> {
         builder: (context) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          icon: Icon(Icons.check_circle, color: AppTheme.success, size: 48),
+          icon:
+              const Icon(Icons.check_circle, color: AppTheme.success, size: 48),
           title: const Text('Reservation Confirmed!'),
           content: Text(
             'Your $_selectedService for ${_plateController.text} is booked at ${_selectedTime!.format(context)}.',
@@ -187,7 +188,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                               fontWeight: FontWeight.w600, fontSize: 14)),
                     ),
                     Text('${entry.value} F',
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppTheme.primary)),
                   ],
@@ -225,7 +226,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.access_time, color: AppTheme.primary),
+                  const Icon(Icons.access_time, color: AppTheme.primary),
                   const SizedBox(width: 12),
                   Text(
                     _selectedTime == null
@@ -262,7 +263,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
         children: [
           Text('Total', style: Theme.of(context).textTheme.titleMedium),
           Text('${_services[_selectedService]} F',
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primary)),
