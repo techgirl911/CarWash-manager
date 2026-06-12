@@ -17,7 +17,7 @@ class CustomerDashboard extends StatelessWidget {
           IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () async {
-                await AuthService();
+                await AuthService.logout();
                 if (context.mounted) context.go(AppRoutes.login);
               }),
         ],
