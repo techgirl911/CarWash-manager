@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/drinks_service.dart';
 
 class DrinksScreen extends StatefulWidget {
   const DrinksScreen({super.key});
@@ -11,20 +12,50 @@ class DrinksScreen extends StatefulWidget {
 }
 
 class _DrinksScreenState extends State<DrinksScreen> {
-  // Temporary local data — will come from backend later
-  final List<Map<String, dynamic>> _drinks = [
-    {'name': 'Coca-Cola', 'stock': 24, 'threshold': 10, 'price': 500},
-    {'name': 'Sprite', 'stock': 8, 'threshold': 10, 'price': 500},
-    {'name': 'Bottled Water', 'stock': 3, 'threshold': 10, 'price': 300},
-    {'name': 'Fanta', 'stock': 15, 'threshold': 10, 'price': 500},
-    {'name': 'Energy Drink', 'stock': 2, 'threshold': 5, 'price': 1000},
-  ];
+  List<Map<String, dynamic>> _drinks = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  void _adjustStock(int index, int delta) {
+  @override
+  void initState() {
+    super.initState();
+    _loadDrinks();
+  }
+
+  Future<void> _loadDrinks() async {
     setState(() {
-      final newStock = _drinks[index]['stock'] + delta;
-      _drinks[index]['stock'] = newStock < 0 ? 0 : newStock;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    final result = await DrinksService.getDrinks();
+
+    if (result['success']) {
+      setState(() {
+        _drinks = List<Map<String, dynamic>>.from(result['data']);
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _adjustStock(int index, int delta) async {
+    final drink = _drinks[index];
+
+    final result =
+        await DrinksService.adjustStock(drinkId: drink['id'], delta: delta);
+
+    if (result['success']) {
+      _loadDrinks();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
   }
 
   void _showAddDrinkDialog() {
@@ -73,17 +104,25 @@ class _DrinksScreenState extends State<DrinksScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (nameController.text.isEmpty) return;
-              setState(() {
-                _drinks.add({
-                  'name': nameController.text,
-                  'stock': int.tryParse(stockController.text) ?? 0,
-                  'threshold': int.tryParse(thresholdController.text) ?? 10,
-                  'price': int.tryParse(priceController.text) ?? 0,
-                });
-              });
-              Navigator.pop(context);
+
+              final result = await DrinksService.addDrink(
+                name: nameController.text,
+                stock: int.tryParse(stockController.text) ?? 0,
+                price: double.tryParse(priceController.text) ?? 0,
+                threshold: int.tryParse(thresholdController.text) ?? 10,
+              );
+
+              if (context.mounted) Navigator.pop(context);
+
+              if (result['success']) {
+                _loadDrinks();
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result['message'])),
+                );
+              }
             },
             child: const Text('Add'),
           ),
@@ -95,9 +134,12 @@ class _DrinksScreenState extends State<DrinksScreen> {
   @override
   Widget build(BuildContext context) {
     final lowStockItems =
-        _drinks.where((d) => d['stock'] <= d['threshold']).toList();
-    final totalValue = _drinks.fold<int>(
-        0, (sum, d) => sum + (d['stock'] as int) * (d['price'] as int));
+        _drinks.where((d) => d['stock'] <= d['low_stock_threshold']).toList();
+    final totalValue = _drinks.fold<double>(
+        0,
+        (sum, d) =>
+            sum +
+            (d['stock'] as int) * double.parse(d['unit_price'].toString()));
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -114,26 +156,42 @@ class _DrinksScreenState extends State<DrinksScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryRow(totalValue, lowStockItems.length),
-            if (lowStockItems.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _buildLowStockAlert(lowStockItems),
-            ],
-            const SizedBox(height: 24),
-            Text('All Drinks', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            ..._drinks
-                .asMap()
-                .entries
-                .map((e) => _buildDrinkCard(e.key, e.value)),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryRow(
+                          totalValue.toInt(), lowStockItems.length),
+                      if (lowStockItems.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _buildLowStockAlert(lowStockItems),
+                      ],
+                      const SizedBox(height: 24),
+                      Text('All Drinks',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      if (_drinks.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Center(
+                            child: Text('No drinks yet. Tap + to add one.',
+                                style:
+                                    TextStyle(color: AppTheme.textSecondary)),
+                          ),
+                        )
+                      else
+                        ..._drinks
+                            .asMap()
+                            .entries
+                            .map((e) => _buildDrinkCard(e.key, e.value)),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -189,8 +247,7 @@ class _DrinksScreenState extends State<DrinksScreen> {
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(label,
-              style:
-                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
       ),
     );
@@ -206,14 +263,14 @@ class _DrinksScreenState extends State<DrinksScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.notifications_active_outlined,
+          Icon(Icons.notifications_active_outlined,
               color: AppTheme.error, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Low Stock Alert',
+                Text('Low Stock Alert',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
@@ -221,7 +278,7 @@ class _DrinksScreenState extends State<DrinksScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '${items.map((e) => e['name']).join(', ')} running low',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.error),
+                  style: TextStyle(fontSize: 12, color: AppTheme.error),
                 ),
               ],
             ),
@@ -232,7 +289,7 @@ class _DrinksScreenState extends State<DrinksScreen> {
   }
 
   Widget _buildDrinkCard(int index, Map<String, dynamic> drink) {
-    final isLow = drink['stock'] <= drink['threshold'];
+    final isLow = drink['stock'] <= drink['low_stock_threshold'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -265,12 +322,12 @@ class _DrinksScreenState extends State<DrinksScreen> {
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text('${drink['price']} F per unit',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppTheme.textSecondary)),
+                Text('${drink['unit_price']} F per unit',
+                    style:
+                        TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 if (isLow) ...[
                   const SizedBox(height: 4),
-                  const Text('Low stock!',
+                  Text('Low stock!',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

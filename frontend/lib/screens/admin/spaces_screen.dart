@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/spaces_service.dart';
 
 class SpacesScreen extends StatefulWidget {
   const SpacesScreen({super.key});
@@ -11,48 +12,55 @@ class SpacesScreen extends StatefulWidget {
 }
 
 class _SpacesScreenState extends State<SpacesScreen> {
-  // Temporary local data — will come from backend later
-  final List<Map<String, dynamic>> _bays = [
-    {
-      'number': 1,
-      'status': 'occupied',
-      'plate': 'CE 123 AB',
-      'service': 'Full Wash'
-    },
-    {
-      'number': 2,
-      'status': 'occupied',
-      'plate': 'CE 456 CD',
-      'service': 'Basic Wash'
-    },
-    {'number': 3, 'status': 'empty', 'plate': null, 'service': null},
-    {
-      'number': 4,
-      'status': 'occupied',
-      'plate': 'CE 789 EF',
-      'service': 'Full Wash'
-    },
-    {'number': 5, 'status': 'empty', 'plate': null, 'service': null},
-    {
-      'number': 6,
-      'status': 'occupied',
-      'plate': 'CE 321 GH',
-      'service': 'Premium Wash'
-    },
-  ];
+  List<Map<String, dynamic>> _bays = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  void _toggleBay(int index) {
+  @override
+  void initState() {
+    super.initState();
+    _loadBays();
+  }
+
+  Future<void> _loadBays() async {
     setState(() {
-      if (_bays[index]['status'] == 'empty') {
-        _bays[index]['status'] = 'occupied';
-        _bays[index]['plate'] = 'New Car';
-        _bays[index]['service'] = 'Basic Wash';
-      } else {
-        _bays[index]['status'] = 'empty';
-        _bays[index]['plate'] = null;
-        _bays[index]['service'] = null;
-      }
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    final result = await SpacesService.getBays();
+
+    if (result['success']) {
+      setState(() {
+        _bays = List<Map<String, dynamic>>.from(result['data']);
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleBay(int index) async {
+    final bay = _bays[index];
+    final isCurrentlyEmpty = bay['status'] == 'empty';
+
+    final result = await SpacesService.updateBay(
+      bayId: bay['id'],
+      status: isCurrentlyEmpty ? 'occupied' : 'empty',
+      carPlate: isCurrentlyEmpty ? 'New Car' : null,
+      serviceType: isCurrentlyEmpty ? 'Basic Wash' : null,
+    );
+
+    if (result['success']) {
+      _loadBays(); // Refresh from server
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
   }
 
   @override
@@ -68,34 +76,46 @@ class _SpacesScreenState extends State<SpacesScreen> {
           onPressed: () => context.go(AppRoutes.adminDashboard),
         ),
         title: const Text('Manage Bays'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadBays,
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryRow(occupied, empty),
-            const SizedBox(height: 24),
-            Text('All Bays', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text('Tap a bay to toggle its status',
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _bays.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.1,
-              ),
-              itemBuilder: (context, index) => _buildBayCard(index),
-            ),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text(_errorMessage!))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSummaryRow(occupied, empty),
+                      const SizedBox(height: 24),
+                      Text('All Bays',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text('Tap a bay to toggle its status',
+                          style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(height: 12),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _bays.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.1,
+                        ),
+                        itemBuilder: (context, index) => _buildBayCard(index),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
@@ -153,8 +173,8 @@ class _SpacesScreenState extends State<SpacesScreen> {
                   style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w700)),
               Text(label,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppTheme.textSecondary)),
+                  style:
+                      TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
             ],
           ),
         ],
@@ -185,7 +205,7 @@ class _SpacesScreenState extends State<SpacesScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Bay ${bay['number']}',
+                Text('Bay ${bay['bay_number']}',
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700)),
                 Icon(
@@ -198,14 +218,14 @@ class _SpacesScreenState extends State<SpacesScreen> {
               ],
             ),
             if (isOccupied) ...[
-              Text(bay['plate'],
+              Text(bay['car_plate'] ?? '',
                   style: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(bay['service'],
-                  style: const TextStyle(
-                      fontSize: 12, color: AppTheme.textSecondary)),
+              Text(bay['service_type'] ?? '',
+                  style:
+                      TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
             ] else
-              const Text('Available',
+              Text('Available',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

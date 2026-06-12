@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/finance_service.dart';
 
 class FinanceScreen extends StatefulWidget {
   const FinanceScreen({super.key});
@@ -15,30 +16,16 @@ class _FinanceScreenState extends State<FinanceScreen> {
   final _drinkIncomeController = TextEditingController();
   final _expensesController = TextEditingController();
 
-  // Temporary local data — will come from backend later
-  final List<Map<String, dynamic>> _history = [
-    {
-      'date': 'Jun 10, 2026',
-      'wash': 18000,
-      'drinks': 4500,
-      'expenses': 2000,
-      'profit': 20500
-    },
-    {
-      'date': 'Jun 9, 2026',
-      'wash': 15000,
-      'drinks': 3200,
-      'expenses': 1500,
-      'profit': 16700
-    },
-    {
-      'date': 'Jun 8, 2026',
-      'wash': 21000,
-      'drinks': 5100,
-      'expenses': 2500,
-      'profit': 23600
-    },
-  ];
+  List<Map<String, dynamic>> _history = [];
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
 
   @override
   void dispose() {
@@ -48,42 +35,70 @@ class _FinanceScreenState extends State<FinanceScreen> {
     super.dispose();
   }
 
-  void _saveDailyEntry() {
+  Future<void> _loadHistory() async {
+    setState(() => _isLoading = true);
+
+    final result = await FinanceService.getHistory();
+
+    if (result['success']) {
+      setState(() {
+        _history = List<Map<String, dynamic>>.from(result['data']);
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = result['message'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveDailyEntry() async {
     final wash = double.tryParse(_washIncomeController.text) ?? 0;
     final drinks = double.tryParse(_drinkIncomeController.text) ?? 0;
     final expenses = double.tryParse(_expensesController.text) ?? 0;
-    final profit = wash + drinks - expenses;
 
-    if (wash == 0 && drinks == 0) {
+    if (wash == 0 && drinks == 0 && expenses == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter at least one amount.')),
       );
       return;
     }
 
-    setState(() {
-      _history.insert(0, {
-        'date': 'Today',
-        'wash': wash.toInt(),
-        'drinks': drinks.toInt(),
-        'expenses': expenses.toInt(),
-        'profit': profit.toInt(),
-      });
+    setState(() => _isSaving = true);
+
+    final result = await FinanceService.saveEntry(
+      washIncome: wash,
+      drinkIncome: drinks,
+      expenses: expenses,
+    );
+
+    setState(() => _isSaving = false);
+
+    if (result['success']) {
       _washIncomeController.clear();
       _drinkIncomeController.clear();
       _expensesController.clear();
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Today's entry saved!")),
-    );
+      _loadHistory();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Entry saved!")),
+        );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'])),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final todayProfit = _history.isNotEmpty ? _history.first['profit'] : 0;
-    final weekTotal =
-        _history.fold<int>(0, (sum, item) => sum + (item['profit'] as int));
+    final todayProfit = _history.isNotEmpty
+        ? double.parse(_history.first['profit'].toString()).toInt()
+        : 0;
+    final weekTotal = _history.fold<int>(0,
+        (sum, item) => sum + double.parse(item['profit'].toString()).toInt());
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -93,22 +108,37 @@ class _FinanceScreenState extends State<FinanceScreen> {
           onPressed: () => context.go(AppRoutes.adminDashboard),
         ),
         title: const Text('Finance'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadHistory),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryRow(todayProfit, weekTotal),
-            const SizedBox(height: 24),
-            _buildEntryForm(),
-            const SizedBox(height: 24),
-            Text('History', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            ..._history.map((entry) => _buildHistoryCard(entry)),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSummaryRow(todayProfit, weekTotal),
+                  const SizedBox(height: 24),
+                  _buildEntryForm(),
+                  const SizedBox(height: 24),
+                  Text('History',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  if (_history.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Text('No entries yet.',
+                            style: TextStyle(color: AppTheme.textSecondary)),
+                      ),
+                    )
+                  else
+                    ..._history.map((entry) => _buildHistoryCard(entry)),
+                ],
+              ),
+            ),
     );
   }
 
@@ -164,8 +194,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(label,
-              style:
-                  const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
         ],
       ),
     );
@@ -182,8 +211,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Log Today's Earnings",
+          Text("Add to Today's Earnings",
               style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('Values add to existing totals for today',
+              style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           TextFormField(
             controller: _washIncomeController,
@@ -213,9 +245,15 @@ class _FinanceScreenState extends State<FinanceScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _saveDailyEntry,
-            icon: const Icon(Icons.save_outlined),
-            label: const Text('Save Entry'),
+            onPressed: _isSaving ? null : _saveDailyEntry,
+            icon: _isSaving
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.save_outlined),
+            label: Text(_isSaving ? 'Saving...' : 'Save Entry'),
           ),
         ],
       ),
@@ -223,6 +261,13 @@ class _FinanceScreenState extends State<FinanceScreen> {
   }
 
   Widget _buildHistoryCard(Map<String, dynamic> entry) {
+    final date = DateTime.parse(entry['entry_date']);
+    final formattedDate = '${date.day}/${date.month}/${date.year}';
+    final profit = double.parse(entry['profit'].toString()).toInt();
+    final wash = double.parse(entry['wash_income'].toString()).toInt();
+    final drinks = double.parse(entry['drink_income'].toString()).toInt();
+    final expenses = double.parse(entry['expenses'].toString()).toInt();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -237,7 +282,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(entry['date'],
+              Text(formattedDate,
                   style: const TextStyle(
                       fontWeight: FontWeight.w600, fontSize: 14)),
               Container(
@@ -247,8 +292,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
                   color: AppTheme.successLight,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text('+${entry['profit']} F',
-                    style: const TextStyle(
+                child: Text('+$profit F',
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.success)),
@@ -258,13 +303,11 @@ class _FinanceScreenState extends State<FinanceScreen> {
           const SizedBox(height: 10),
           Row(
             children: [
-              _buildMiniStat('Wash', '${entry['wash']} F', AppTheme.primary),
+              _buildMiniStat('Wash', '$wash F', AppTheme.primary),
               const SizedBox(width: 16),
-              _buildMiniStat(
-                  'Drinks', '${entry['drinks']} F', AppTheme.warning),
+              _buildMiniStat('Drinks', '$drinks F', AppTheme.warning),
               const SizedBox(width: 16),
-              _buildMiniStat(
-                  'Expenses', '${entry['expenses']} F', AppTheme.error),
+              _buildMiniStat('Expenses', '$expenses F', AppTheme.error),
             ],
           ),
         ],
@@ -277,8 +320,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style:
-                const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
         const SizedBox(height: 2),
         Text(value,
             style: TextStyle(

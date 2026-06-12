@@ -32,4 +32,7 @@ class Constants {
   static const int lowStockAlert = 5; // notify when drinks stock ≤ 5
   static const int totalBays =
       6; // total car wash bays (change to match real number)
+  static const String todayFinanceUrl = '$financeUrl/today';
+  static const String myReservationsUrl = '$reservationsUrl/my';
+  static const String todayReservationsUrl = '$reservationsUrl/stats/today';
 }
