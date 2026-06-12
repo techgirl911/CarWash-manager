@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -33,46 +34,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    // Basic validation
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all required fields.');
+      return;
+    }
+
+    if (_passwordController.text != _confirmController.text) {
+      setState(() => _errorMessage = 'Passwords do not match.');
+      return;
+    }
+
+    if (_passwordController.text.length < 6) {
+      setState(() => _errorMessage = 'Password must be at least 6 characters.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
     });
 
-    // Basic validation
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please fill in all required fields.';
-        _isLoading = false;
-      });
+    final result = await AuthService.register(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (!result['success']) {
+      setState(() => _errorMessage = result['message']);
       return;
     }
 
-    if (_passwordController.text != _confirmController.text) {
-      setState(() {
-        _errorMessage = 'Passwords do not match.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    if (_passwordController.text.length < 6) {
-      setState(() {
-        _errorMessage = 'Password must be at least 6 characters.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // Temporary: simulate registration until backend is ready
-    await Future.delayed(const Duration(seconds: 1));
-
-    setState(() {
-      _isLoading = false;
-      _successMessage = 'Account created! You can now sign in.';
-    });
+    setState(() => _successMessage = 'Account created! You can now sign in.');
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) context.go(AppRoutes.login);
