@@ -145,7 +145,7 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
     return ElevatedButton.icon(
       onPressed: () async {
         await context.push(AppRoutes.reservation);
-        _loadData(); // Refresh when coming back
+        _loadData();
       },
       icon: const Icon(Icons.add_circle_outline),
       label: const Text('Book a Reservation'),
@@ -214,48 +214,104 @@ class _CustomerDashboardState extends State<CustomerDashboard> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.directions_car,
-                color: AppTheme.primary, size: 22),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.directions_car,
+                    color: AppTheme.primary, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(r['car_plate'],
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text('${r['service_type']} • $formattedTime',
+                        style: TextStyle(
+                            fontSize: 12, color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status[0].toUpperCase() + status.substring(1),
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(r['car_plate'],
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text('${r['service_type']} • $formattedTime',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-              ],
+          if (isPending) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _confirmCancel(r['id']),
+                icon: Icon(Icons.cancel_outlined,
+                    size: 16, color: AppTheme.error),
+                label: Text('Cancel',
+                    style: TextStyle(color: AppTheme.error, fontSize: 13)),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                ),
+              ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmCancel(int reservationId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancel Reservation?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: statusBg,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              status[0].toUpperCase() + status.substring(1),
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor),
-            ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Cancel'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true) {
+      final result = await ReservationService.cancelReservation(reservationId);
+      if (result['success']) {
+        _loadData();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'])),
+        );
+      }
+    }
   }
 }

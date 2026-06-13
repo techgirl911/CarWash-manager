@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'constants.dart';
+import '../screens/admin/reservations_screen.dart';
 
 class AppRoutes {
   // ── Route names ───────────────────────────────────────────
@@ -21,7 +22,7 @@ class AppRoutes {
   static const String drinks = '/admin/drinks';
   static const String customerDashboard = '/customer/dashboard';
   static const String reservation = '/customer/reservation';
-
+  static const String reservationsAdmin = '/admin/reservations';
   // ── Router (screens will be added as we build them) ───────
   static final GoRouter router = GoRouter(
     initialLocation: login,
@@ -68,6 +69,11 @@ class AppRoutes {
         path: reservation,
         name: 'reservation',
         builder: (context, state) => const ReservationScreen(),
+      ),
+      GoRoute(
+        path: reservationsAdmin,
+        name: 'reservationsAdmin',
+        builder: (context, state) => const ReservationsScreen(),
       ),
     ],
   );

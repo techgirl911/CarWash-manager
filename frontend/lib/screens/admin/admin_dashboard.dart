@@ -216,7 +216,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         'subtitle': 'All bookings',
         'icon': Icons.calendar_month_outlined,
         'color': AppTheme.accent,
-        'route': AppRoutes.spaces,
+        'route': AppRoutes.reservationsAdmin,
       },
     ];
 

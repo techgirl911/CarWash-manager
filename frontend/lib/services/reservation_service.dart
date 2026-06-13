@@ -122,4 +122,52 @@ class ReservationService {
       return {'success': false, 'message': 'Failed to update status'};
     }
   }
+
+  // ── CANCEL RESERVATION (customer) ──────────────────────────
+  static Future<Map<String, dynamic>> cancelReservation(
+      int reservationId) async {
+    final token = await _getToken();
+
+    final response = await http.put(
+      Uri.parse('${Constants.reservationsUrl}/$reservationId/cancel'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return {'success': true};
+    } else {
+      final data = jsonDecode(response.body);
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to cancel'
+      };
+    }
+  }
+
+  // ── UPDATE STATUS WITH BAY (admin) ─────────────────────────
+  static Future<Map<String, dynamic>> updateStatusWithBay({
+    required int reservationId,
+    required String status,
+    int? bayId,
+  }) async {
+    final token = await _getToken();
+
+    final response = await http.put(
+      Uri.parse('${Constants.reservationsUrl}/$reservationId/status'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'status': status, 'bay_id': bayId}),
+    );
+
+    if (response.statusCode == 200) {
+      return {'success': true};
+    } else {
+      return {'success': false, 'message': 'Failed to update status'};
+    }
+  }
 }
