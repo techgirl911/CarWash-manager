@@ -2,8 +2,8 @@ class Constants {
   // ── API ───────────────────────────────────────────────────
   // During development your Node.js backend will run locally
   // We'll update this to a real URL when we deploy
-  static const String baseUrl = 'http://localhost:3000/api';
-
+  static const String baseUrl =
+      'https://carwash-manager-production.up.railway.app/api';
   // ── Auth endpoints ────────────────────────────────────────
   static const String loginUrl = '$baseUrl/auth/login';
   static const String registerUrl = '$baseUrl/auth/register';
