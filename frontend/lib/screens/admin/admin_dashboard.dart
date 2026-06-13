@@ -3,9 +3,52 @@ import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
 import '../../services/auth_service.dart';
+import '../../services/spaces_service.dart';
+import '../../services/finance_service.dart';
+import '../../services/reservation_service.dart';
 
-class AdminDashboard extends StatelessWidget {
+class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
+  int _occupiedBays = 0;
+  int _emptyBays = 0;
+  double _todayProfit = 0;
+  int _todayReservations = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    final spacesResult = await SpacesService.getBays();
+    final financeResult = await FinanceService.getToday();
+    final reservationCount = await ReservationService.getTodayCount();
+
+    if (spacesResult['success']) {
+      final bays = List<Map<String, dynamic>>.from(spacesResult['data']);
+      _occupiedBays = bays.where((b) => b['status'] == 'occupied').length;
+      _emptyBays = bays.where((b) => b['status'] == 'empty').length;
+    }
+
+    if (financeResult['success'] && financeResult['data'] != null) {
+      _todayProfit =
+          double.tryParse(financeResult['data']['profit'].toString()) ?? 0;
+    }
+
+    _todayReservations = reservationCount;
+
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,27 +57,31 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Lulu's Car Wash"),
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
           IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                await AuthService.logout();
-                if (context.mounted) context.go(AppRoutes.login);
-              }),
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AuthService.logout();
+              if (context.mounted) context.go(AppRoutes.login);
+            },
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildWelcome(context),
-            const SizedBox(height: 24),
-            _buildStatsRow(context),
-            const SizedBox(height: 24),
-            _buildMenuGrid(context),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcome(context),
+                  const SizedBox(height: 24),
+                  _buildStatsRow(context),
+                  const SizedBox(height: 24),
+                  _buildMenuGrid(context),
+                ],
+              ),
+            ),
     );
   }
 
@@ -68,22 +115,22 @@ class AdminDashboard extends StatelessWidget {
           children: [
             _buildStatCard(context,
                 label: 'Cars in Wash',
-                value: '4',
+                value: '$_occupiedBays',
                 icon: Icons.directions_car,
                 color: AppTheme.primary),
             _buildStatCard(context,
                 label: 'Empty Bays',
-                value: '2',
+                value: '$_emptyBays',
                 icon: Icons.garage_outlined,
                 color: AppTheme.success),
             _buildStatCard(context,
                 label: "Today's Revenue",
-                value: '15,000 F',
+                value: '${_todayProfit.toInt()} F',
                 icon: Icons.payments_outlined,
                 color: AppTheme.warning),
             _buildStatCard(context,
                 label: 'Reservations',
-                value: '8',
+                value: '$_todayReservations',
                 icon: Icons.calendar_today_outlined,
                 color: AppTheme.accent),
           ],
@@ -187,7 +234,10 @@ class AdminDashboard extends StatelessWidget {
           childAspectRatio: 1.3,
           children: items.map((item) {
             return GestureDetector(
-              onTap: () => context.go(item['route'] as String),
+              onTap: () async {
+                await context.push(item['route'] as String);
+                _loadData();
+              },
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(

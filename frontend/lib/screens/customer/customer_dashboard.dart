@@ -1,11 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/auth_service.dart';
+import '../../services/reservation_service.dart';
+import '../../services/spaces_service.dart';
 
-class CustomerDashboard extends StatelessWidget {
+class CustomerDashboard extends StatefulWidget {
   const CustomerDashboard({super.key});
+
+  @override
+  State<CustomerDashboard> createState() => _CustomerDashboardState();
+}
+
+class _CustomerDashboardState extends State<CustomerDashboard> {
+  List<Map<String, dynamic>> _reservations = [];
+  int _emptyBays = 0;
+  int _totalBays = 6;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    final reservationsResult = await ReservationService.getMyReservations();
+    final spacesResult = await SpacesService.getBays();
+
+    if (reservationsResult['success']) {
+      _reservations =
+          List<Map<String, dynamic>>.from(reservationsResult['data']);
+    }
+
+    if (spacesResult['success']) {
+      final bays = List<Map<String, dynamic>>.from(spacesResult['data']);
+      _totalBays = bays.length;
+      _emptyBays = bays.where((b) => b['status'] == 'empty').length;
+    }
+
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,29 +52,33 @@ class CustomerDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Lulu's Car Wash"),
         actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
           IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () async {
-                await AuthService.logout();
-                if (context.mounted) context.go(AppRoutes.login);
-              }),
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await AuthService.logout();
+              if (context.mounted) context.go(AppRoutes.login);
+            },
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildWelcome(context),
-            const SizedBox(height: 24),
-            _buildAvailability(context),
-            const SizedBox(height: 24),
-            _buildBookButton(context),
-            const SizedBox(height: 24),
-            _buildMyReservations(context),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcome(context),
+                  const SizedBox(height: 24),
+                  _buildAvailability(context),
+                  const SizedBox(height: 24),
+                  _buildBookButton(context),
+                  const SizedBox(height: 24),
+                  _buildMyReservations(context),
+                ],
+              ),
+            ),
     );
   }
 
@@ -75,8 +117,8 @@ class CustomerDashboard extends StatelessWidget {
               const Text('Available Bays',
                   style: TextStyle(color: Colors.white70, fontSize: 13)),
               const SizedBox(height: 4),
-              Text('2 of 6',
-                  style: GoogleFontsFallback.style(
+              Text('$_emptyBays of $_totalBays',
+                  style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       color: Colors.white)),
@@ -101,40 +143,62 @@ class CustomerDashboard extends StatelessWidget {
 
   Widget _buildBookButton(BuildContext context) {
     return ElevatedButton.icon(
-      onPressed: () => context.go(AppRoutes.reservation),
+      onPressed: () async {
+        await context.push(AppRoutes.reservation);
+        _loadData(); // Refresh when coming back
+      },
       icon: const Icon(Icons.add_circle_outline),
       label: const Text('Book a Reservation'),
     );
   }
 
   Widget _buildMyReservations(BuildContext context) {
-    final reservations = [
-      {
-        'plate': 'CE 123 AB',
-        'service': 'Full Wash',
-        'status': 'Pending',
-        'time': 'Today, 2:00 PM'
-      },
-      {
-        'plate': 'CE 456 CD',
-        'service': 'Basic Wash',
-        'status': 'Done',
-        'time': 'Yesterday, 10:00 AM'
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('My Reservations', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        ...reservations.map((r) => _buildReservationCard(context, r)),
+        if (_reservations.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Text('No reservations yet. Book one above!',
+                  style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+          )
+        else
+          ..._reservations.map((r) => _buildReservationCard(context, r)),
       ],
     );
   }
 
-  Widget _buildReservationCard(BuildContext context, Map<String, String> r) {
-    final isPending = r['status'] == 'Pending';
+  Widget _buildReservationCard(BuildContext context, Map<String, dynamic> r) {
+    final status = r['status'] as String;
+    final isPending = status == 'pending';
+    final time = DateTime.parse(r['reservation_time']);
+    final formattedTime =
+        '${time.day}/${time.month} • ${time.hour}:${time.minute.toString().padLeft(2, '0')}';
+
+    Color statusColor;
+    Color statusBg;
+    switch (status) {
+      case 'done':
+        statusColor = AppTheme.success;
+        statusBg = AppTheme.successLight;
+        break;
+      case 'active':
+        statusColor = AppTheme.primary;
+        statusBg = AppTheme.primaryLight;
+        break;
+      case 'cancelled':
+        statusColor = AppTheme.error;
+        statusBg = AppTheme.errorLight;
+        break;
+      default:
+        statusColor = AppTheme.warning;
+        statusBg = AppTheme.warningLight;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -166,43 +230,32 @@ class CustomerDashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r['plate']!,
+                Text(r['car_plate'],
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text('${r['service']} • ${r['time']}',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppTheme.textSecondary)),
+                Text('${r['service_type']} • $formattedTime',
+                    style:
+                        TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: isPending ? AppTheme.warningLight : AppTheme.successLight,
+              color: statusBg,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              r['status']!,
+              status[0].toUpperCase() + status.substring(1),
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isPending ? AppTheme.warning : AppTheme.success,
-              ),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-// Temporary helper to avoid extra import for one text style
-class GoogleFontsFallback {
-  static TextStyle style(
-      {required double fontSize,
-      required FontWeight fontWeight,
-      required Color color}) {
-    return TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color);
   }
 }

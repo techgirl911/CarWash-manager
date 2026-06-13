@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/routes.dart';
+import '../../services/reservation_service.dart';
 
 class ReservationScreen extends StatefulWidget {
   const ReservationScreen({super.key});
@@ -52,10 +53,32 @@ class _ReservationScreenState extends State<ReservationScreen> {
 
     setState(() => _isSubmitting = true);
 
-    // Temporary: simulate submission until backend is ready
-    await Future.delayed(const Duration(seconds: 1));
+    final now = DateTime.now();
+    final reservationDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+
+    final result = await ReservationService.createReservation(
+      carPlate: _plateController.text.trim(),
+      serviceType: _selectedService,
+      price: _services[_selectedService]!.toDouble(),
+      reservationTime: reservationDateTime,
+    );
 
     setState(() => _isSubmitting = false);
+
+    if (!result['success']) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'])),
+        );
+      }
+      return;
+    }
 
     if (mounted) {
       showDialog(
@@ -63,8 +86,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
         builder: (context) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          icon:
-              const Icon(Icons.check_circle, color: AppTheme.success, size: 48),
+          icon: Icon(Icons.check_circle, color: AppTheme.success, size: 48),
           title: const Text('Reservation Confirmed!'),
           content: Text(
             'Your $_selectedService for ${_plateController.text} is booked at ${_selectedTime!.format(context)}.',
